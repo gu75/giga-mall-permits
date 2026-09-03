@@ -195,79 +195,149 @@
 
 @elseif ($dashboardType === 'manager')
 
-    <h1 class="text-2xl font-bold mb-4">{{ ucfirst(auth()->user()->role) }} Dashboard</h1>
+    <div class="mb-6 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#C8A951]">Management Dashboard</p>
+            <h1 class="mt-1 text-3xl font-extrabold text-[#0A2342]">{{ ucfirst(auth()->user()->role) }} Overview</h1>
+        </div>
+    </div>
 
-    <div class="mb-8">
-        @if ($totalPendingCount > 0)
-            <a href="{{ auth()->user()->isSecurity() && $pendingMaterialCount > $pendingWorkCount
-                    ? route('material-permits.index')
-                    : route('work-permits.index') }}"
-               class="block bg-red-600 hover:bg-red-700 text-white rounded-lg p-6 shadow">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-3xl font-bold">{{ $totalPendingCount }}</p>
-                        <p class="text-sm opacity-90">
-                            Permit{{ $totalPendingCount === 1 ? '' : 's' }} Require Your
-                            {{ auth()->user()->isSecurity() ? 'Signature / Gate Action' : 'Signature' }}
-                        </p>
-                    </div>
-                    <span class="text-4xl">🔴</span>
-                </div>
-                <div class="flex gap-4 mt-3 text-xs opacity-90">
-                    @if ($pendingWorkCount > 0)
-                        <span>{{ $pendingWorkCount }} Work Permit{{ $pendingWorkCount === 1 ? '' : 's' }}</span>
-                    @endif
-                    @if ($pendingMaterialCount > 0)
-                        <span>{{ $pendingMaterialCount }} Material Permit{{ $pendingMaterialCount === 1 ? '' : 's' }}</span>
-                    @endif
-                </div>
-            </a>
-        @else
-            <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-6 text-center">
-                ✅ You're all caught up — nothing pending your approval.
+    <div class="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4">
+        <div class="rounded-xl p-5 text-white shadow-sm" style="background:#0A2342;">
+            <div class="text-3xl font-extrabold">{{ $stats['total'] }}</div>
+            <div class="mt-1 text-xs font-semibold uppercase tracking-wider opacity-80">
+                {{ $permitType === 'material' ? 'Material Permits' : 'Work Permits' }}
             </div>
-        @endif
+        </div>
+        <div class="rounded-xl p-5 text-white shadow-sm bg-emerald-600">
+            <div class="text-3xl font-extrabold">{{ $stats['approved'] }}</div>
+            <div class="mt-1 text-xs font-semibold uppercase tracking-wider opacity-80">Approved</div>
+        </div>
+        <div class="rounded-xl p-5 text-white shadow-sm bg-amber-500">
+            <div class="text-3xl font-extrabold">{{ $stats['pending'] }}</div>
+            <div class="mt-1 text-xs font-semibold uppercase tracking-wider opacity-80">Pending</div>
+        </div>
+        <div class="rounded-xl p-5 text-white shadow-sm bg-red-600">
+            <div class="text-3xl font-extrabold">{{ $stats['rejected'] }}</div>
+            <div class="mt-1 text-xs font-semibold uppercase tracking-wider opacity-80">Rejected</div>
+        </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-4 mb-8">
-        <a href="{{ route('work-permits.index') }}" class="bg-white rounded shadow p-4 text-center hover:bg-gray-50">
-            View All Work Permits
-        </a>
-        <a href="{{ route('material-permits.index') }}" class="bg-white rounded shadow p-4 text-center hover:bg-gray-50">
-            View All Material Permits
-        </a>
-    </div>
-
-        @if ($recentActivity->isEmpty())
-            <p class="text-sm text-gray-500">You haven't approved or rejected any permits yet.</p>
-        @else
-            <div class="bg-white rounded shadow divide-y">
-                @foreach ($recentActivity as $activity)
-                    <a href="{{ $activity['route'] }}" class="flex items-center justify-between p-4 hover:bg-gray-50">
-                        <div>
-                            <p class="font-medium">{{ $activity['ref'] }} — {{ $activity['label'] }}</p>
-                            <p class="text-xs text-gray-500">{{ $activity['type'] }} · {{ $activity['when']->diffForHumans() }}</p>
-                        </div>
-                        <span @class([
-                            'text-xs font-medium px-2 py-1 rounded',
-                            'bg-green-100 text-green-800' => in_array($activity['status'], ['approved', 'gate_cleared']),
-                            'bg-red-100 text-red-800' => $activity['status'] === 'rejected',
-                            'bg-yellow-100 text-yellow-800' => ! in_array($activity['status'], ['approved', 'gate_cleared', 'rejected']),
-                        ])>{{ str($activity['status'])->replace('_', ' ')->title() }}</span>
+    <div class="rounded-xl bg-white shadow-sm p-4 mb-6">
+        <form method="GET" action="{{ route('dashboard') }}" class="flex flex-col gap-3 md:flex-row md:items-end">
+            @if ($canSeeMaterial)
+                <input type="hidden" name="type" value="{{ $permitType }}">
+                <div class="flex gap-2">
+                    <a href="{{ request()->fullUrlWithQuery(['type' => 'work', 'status' => 'all']) }}"
+                       @class(['px-3 py-2 rounded text-sm font-semibold', 'bg-[#0A2342] text-white' => $permitType === 'work', 'bg-gray-100 text-gray-600' => $permitType !== 'work'])>
+                        Work Permits
                     </a>
-                @endforeach
+                    <a href="{{ request()->fullUrlWithQuery(['type' => 'material', 'status' => 'all']) }}"
+                       @class(['px-3 py-2 rounded text-sm font-semibold', 'bg-[#0A2342] text-white' => $permitType === 'material', 'bg-gray-100 text-gray-600' => $permitType !== 'material'])>
+                        Material Permits
+                    </a>
+                </div>
+            @else
+                <input type="hidden" name="type" value="work">
+            @endif
+
+            <div class="flex-1">
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Search</label>
+                <input type="text" name="search" value="{{ $search }}" placeholder="Outlet / shop name..."
+                       class="w-full border rounded px-3 py-2 text-sm">
             </div>
-        @endif
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                <select name="status" onchange="this.form.submit()" class="border rounded px-3 py-2 text-sm">
+                    @foreach ($statusOptions as $value => $label)
+                        <option value="{{ $value }}" {{ $statusFilter === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <button type="submit" class="bg-[#0A2342] text-white px-4 py-2 rounded text-sm font-semibold">
+                Filter
+            </button>
+        </form>
     </div>
 
-@else
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+            @if ($permits->isEmpty())
+                <div class="rounded-xl border border-dashed border-[#D6DCE6] bg-[#F8FAFC] p-6 text-center text-sm text-gray-500">
+                    No permits match your filters.
+                </div>
+            @else
+                <div class="space-y-3">
+                    @foreach ($permits as $permit)
+                        @php
+                            $borderColor = match(true) {
+                                $permit->status === 'approved' || $permit->status === 'gate_cleared' => '#16A34A',
+                                $permit->status === 'rejected' => '#DC2626',
+                                default => '#D97706',
+                            };
+                            $badgeClass = match(true) {
+                                $permit->status === 'approved' || $permit->status === 'gate_cleared' => 'bg-emerald-50 text-emerald-700',
+                                $permit->status === 'rejected' => 'bg-red-50 text-red-700',
+                                default => 'bg-amber-50 text-amber-700',
+                            };
+                            $showRoute = $permitType === 'material' ? route('material-permits.show', $permit) : route('work-permits.show', $permit);
+                            $pdfRoute = $permitType === 'material' ? route('material-permits.pdf', $permit) : route('work-permits.pdf', $permit);
+                            $title = $permitType === 'material' ? $permit->shop_details : $permit->outlet_name;
+                        @endphp
 
-    <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
-    <div class="bg-white rounded shadow p-6">
-        <p class="text-gray-600 mb-4">Welcome, {{ auth()->user()->name }}.</p>
-        <div class="flex gap-4">
-            <a href="{{ route('work-permits.index') }}" class="text-blue-600 hover:underline">Work Permits</a>
-            <a href="{{ route('material-permits.index') }}" class="text-blue-600 hover:underline">Material Permits</a>
+                        <div class="bg-white rounded-xl shadow-sm p-4" style="border-left: 5px solid {{ $borderColor }};">
+                            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p class="font-bold text-[#0A2342]">
+                                        {{ $title }}
+                                        <span class="ml-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold {{ $badgeClass }}">
+                                            {{ str($permit->status)->replace('_', ' ')->title() }}
+                                        </span>
+                                    </p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Tenant: {{ $permit->tenant->name ?? '—' }}
+                                        @if ($permitType === 'work')
+                                            &nbsp;|&nbsp; {{ $permit->valid_from?->format('d M Y') }} {{ $permit->valid_from_time?->format('h:i A') }}
+                                        @else
+                                            &nbsp;|&nbsp; {{ strtoupper($permit->direction) }} &nbsp;|&nbsp; {{ $permit->dated?->format('d M Y') }} {{ $permit->time?->format('h:i A') }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="flex gap-3 shrink-0">
+                                    <a href="{{ $showRoute }}" class="text-sm font-semibold text-[#0A2342] hover:underline">View</a>
+                                    <a href="{{ $pdfRoute }}" class="text-sm font-semibold text-[#0A2342] hover:underline">PDF</a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <div class="mt-4">
+                    {{ $permits->links() }}
+                </div>
+            @endif
+        </div>
+
+        <div>
+            <div class="bg-white rounded-xl shadow-sm">
+                <div class="px-4 py-3 border-b border-[#E2E8F0]">
+                    <h3 class="font-bold text-[#0A2342]">Recent Activity</h3>
+                </div>
+                <ul class="max-h-[600px] overflow-y-auto divide-y divide-[#E2E8F0]">
+                    @forelse ($recentActivity as $activity)
+                        <li>
+                            <a href="{{ $activity['route'] }}" class="block px-4 py-3 hover:bg-gray-50">
+                                <p class="text-sm font-semibold text-[#0A2342]">{{ $activity['ref'] }} — {{ $activity['label'] }}</p>
+                                <p class="text-xs text-gray-500 mt-0.5">{{ $activity['type'] }} · {{ $activity['when']->diffForHumans() }}</p>
+                            </a>
+                        </li>
+                    @empty
+                        <li class="px-4 py-6 text-center text-sm text-gray-500">No recent activity yet.</li>
+                    @endforelse
+                </ul>
+            </div>
         </div>
     </div>
 

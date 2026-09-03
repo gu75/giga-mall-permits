@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\MaterialPermit;
 use App\Models\User;
 use App\Models\WorkPermit;
-use Illuminate\Http\Request;
 use App\Models\WorkPermitDepartmentApproval;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -19,12 +19,8 @@ class DashboardController extends Controller
             return $this->tenantDashboard($user);
         }
 
-        if ($user->isOperations() || $user->isHse() || $user->isSecurity()) {
-            return $this->managerDashboard($user);
-        }
-
-        // Admin (or any other role) gets a simple neutral landing page.
-        return view('dashboard', ['dashboardType' => 'default']);
+        // Operations, HSE, Security, Admin all get the management dashboard.
+        return $this->managerDashboard($request, $user);
     }
 
     private function tenantDashboard(User $user)
@@ -59,54 +55,169 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function managerDashboard(User $user)
+    /**
+     * Work permits this user is allowed to see, BEFORE search/status filters.
+     * Wrapped in a closure so it composes safely with further ->where() calls.
+     */
+    private function workPermitScope(User $user)
     {
-        $pendingWorkCount = 0;
-        $pendingMaterialCount = 0;
+        $query = WorkPermit::query();
+
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        if ($user->isOperations()) {
+            return $query->where(fn ($q) => $q->where('status', 'pending_operations')
+                ->orWhere('operations_approved_by', $user->id));
+        }
+
+        if (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
+            return $query->where(fn ($q) => $q->where('status', 'in_review')
+                ->orWhereHas('departmentApprovals', fn ($d) => $d->where('department', $user->role)->where('actioned_by', $user->id)));
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    /**
+     * Material permits this user is allowed to see, BEFORE search/status filters.
+     */
+    private function materialPermitScope(User $user)
+    {
+        $query = MaterialPermit::query();
+
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        if ($user->isOperations()) {
+            return $query->where(fn ($q) => $q->where('status', 'pending_operations')
+                ->orWhere('operations_approved_by', $user->id));
+        }
+
+        if ($user->role === 'security') {
+            return $query->where(fn ($q) => $q->where('status', 'approved')
+                ->orWhere('gate_logged_by', $user->id));
+        }
+
+        // HSE (and anyone else) never touches material permits.
+        return $query->whereRaw('1 = 0');
+    }
+
+    private function managerDashboard(Request $request, User $user)
+    {
+        $canSeeMaterial = $user->isAdmin() || $user->isOperations() || $user->role === 'security';
+
+        $type = $request->get('type', 'work');
+        if (! $canSeeMaterial || ! in_array($type, ['work', 'material'], true)) {
+            $type = 'work';
+        }
+
+        $search = trim((string) $request->get('search', ''));
+        $status = $request->get('status', 'all');
+
+        if ($type === 'material') {
+            $baseQuery = $this->materialPermitScope($user);
+
+            $stats = [
+                'total' => (clone $baseQuery)->count(),
+                'approved' => (clone $baseQuery)->whereIn('status', ['approved', 'gate_cleared'])->count(),
+                'pending' => (clone $baseQuery)->whereNotIn('status', ['approved', 'gate_cleared', 'rejected'])->count(),
+                'rejected' => (clone $baseQuery)->where('status', 'rejected')->count(),
+            ];
+
+            $listQuery = (clone $baseQuery)->with('tenant');
+
+            if ($search !== '') {
+                $listQuery->where('shop_details', 'like', "%{$search}%");
+            }
+            if ($status !== 'all') {
+                $listQuery->where('status', $status);
+            }
+
+            $permits = $listQuery->latest()->paginate(10)->withQueryString();
+
+            $statusOptions = [
+                'all' => 'All Status',
+                'pending_operations' => 'Pending Operations',
+                'approved' => 'Approved (Awaiting Gate)',
+                'gate_cleared' => 'Gate Cleared',
+                'rejected' => 'Rejected',
+            ];
+        } else {
+            $baseQuery = $this->workPermitScope($user);
+
+            $stats = [
+                'total' => (clone $baseQuery)->count(),
+                'approved' => (clone $baseQuery)->where('status', 'approved')->count(),
+                'pending' => (clone $baseQuery)->whereIn('status', ['pending_operations', 'in_review'])->count(),
+                'rejected' => (clone $baseQuery)->where('status', 'rejected')->count(),
+            ];
+
+            $listQuery = (clone $baseQuery)->with('tenant');
+
+            if ($search !== '') {
+                $listQuery->where('outlet_name', 'like', "%{$search}%");
+            }
+            if ($status !== 'all') {
+                $listQuery->where('status', $status);
+            }
+
+            $permits = $listQuery->latest()->paginate(10)->withQueryString();
+
+            $statusOptions = [
+                'all' => 'All Status',
+                'pending_operations' => 'Pending Operations',
+                'in_review' => 'In Review (Departments)',
+                'approved' => 'Approved',
+                'rejected' => 'Rejected',
+            ];
+        }
+
+        return view('dashboard', [
+            'dashboardType' => 'manager',
+            'permitType' => $type,
+            'canSeeMaterial' => $canSeeMaterial,
+            'stats' => $stats,
+            'permits' => $permits,
+            'search' => $search,
+            'statusFilter' => $status,
+            'statusOptions' => $statusOptions,
+            'recentActivity' => $this->buildRecentActivity($user),
+        ]);
+    }
+
+    private function buildRecentActivity(User $user)
+    {
         $recentWorkPermits = collect();
         $recentMaterialPermits = collect();
 
-        if ($user->isOperations()) {
-            $pendingWorkCount = WorkPermit::where('status', 'pending_operations')->count();
-            $pendingMaterialCount = MaterialPermit::where('status', 'pending_operations')->count();
-
+        if ($user->isAdmin()) {
+            $recentWorkPermits = WorkPermit::latest('updated_at')->take(8)->get();
+            $recentMaterialPermits = MaterialPermit::latest('updated_at')->take(8)->get();
+        } elseif ($user->isOperations()) {
             $recentWorkPermits = WorkPermit::where('operations_approved_by', $user->id)
                 ->orWhere('rejected_by', $user->id)
-                ->latest('updated_at')
-                ->take(8)
-                ->get();
+                ->latest('updated_at')->take(8)->get();
 
             $recentMaterialPermits = MaterialPermit::where('operations_approved_by', $user->id)
                 ->orWhere('rejected_by', $user->id)
-                ->latest('updated_at')
-                ->take(8)
-                ->get();
-          }        elseif (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
-            $pendingWorkCount = WorkPermit::where('status', 'in_review')
-                ->whereDoesntHave('departmentApprovals', fn ($q) => $q->where('department', $user->role))
-                ->count();
-
+                ->latest('updated_at')->take(8)->get();
+        } elseif (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
             $recentWorkPermitIds = WorkPermitDepartmentApproval::where('actioned_by', $user->id)
                 ->where('department', $user->role)
-                ->latest('actioned_at')
-                ->take(8)
-                ->pluck('work_permit_id');
+                ->latest('actioned_at')->take(8)->pluck('work_permit_id');
 
             $recentWorkPermits = WorkPermit::whereIn('id', $recentWorkPermitIds)->get();
 
             if ($user->role === 'security') {
-                // Security also gate-logs Material Permits once Operations approves them.
-                $pendingMaterialCount = MaterialPermit::where('status', 'approved')->count();
-
                 $recentMaterialPermits = MaterialPermit::where('gate_logged_by', $user->id)
-                    ->latest('updated_at')
-                    ->take(8)
-                    ->get();
+                    ->latest('updated_at')->take(8)->get();
             }
         }
 
-        // Merge both permit types into one recent-activity feed, newest first.
-        $recentActivity = $recentWorkPermits->map(fn ($p) => [
+        return $recentWorkPermits->map(fn ($p) => [
                 'type' => 'Work Permit',
                 'ref' => 'WP-' . $p->id,
                 'label' => $p->outlet_name,
@@ -125,13 +236,5 @@ class DashboardController extends Controller
             ->sortByDesc('when')
             ->take(10)
             ->values();
-
-        return view('dashboard', [
-            'dashboardType' => 'manager',
-            'pendingWorkCount' => $pendingWorkCount,
-            'pendingMaterialCount' => $pendingMaterialCount,
-            'totalPendingCount' => $pendingWorkCount + $pendingMaterialCount,
-            'recentActivity' => $recentActivity,
-        ]);
     }
 }
