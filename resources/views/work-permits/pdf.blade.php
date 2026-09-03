@@ -10,13 +10,55 @@
         td, th { border: 1px solid #333; padding: 5px; font-size: 11px; }
         .label { color: #555; width: 160px; }
         .section-title { background: #222; color: #fff; padding: 4px 8px; margin-top: 16px; }
-        .status { font-weight: bold; }
+
+        .header-table { border: none; margin-top: 0; }
+        .header-table td { border: none; padding: 0; vertical-align: middle; }
+        .logo-cell { width: 90px; }
+        .logo-cell img { width: 80px; }
+
+        .duration-box {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border: 2px solid #0A2342;
+            border-radius: 4px;
+            background: #F0F4F8;
+            font-size: 14px;
+            font-weight: bold;
+            color: #0A2342;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #fff;
+        }
+        .status-approved { background: #16A34A; }
+        .status-rejected { background: #DC2626; }
+        .status-pending { background: #D97706; }
     </style>
 </head>
 <body>
-    <h1>GIGAMALL</h1>
-    <p class="center">WORK PERMIT FORM</p>
-    <p class="center">{{ $permit->valid_from->format('d F Y') }} to {{ $permit->valid_to->format('d F Y') }}</p>
+
+    <table class="header-table">
+        <tr>
+            <td class="logo-cell">
+                <img src="{{ public_path('images/logo1.png') }}">
+            </td>
+            <td>
+                <h1>GIGAMALL</h1>
+                <p class="center">WORK PERMIT FORM</p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="duration-box center">
+        {{ $permit->valid_from->format('d F Y') }} {{ $permit->valid_from_time?->format('h:i A') }}
+        &nbsp;to&nbsp;
+        {{ $permit->valid_to->format('d F Y') }} {{ $permit->valid_to_time?->format('h:i A') }}
+    </div>
 
     <table>
         <tr>
@@ -59,29 +101,36 @@
     </p>
 
     <p class="section-title">APPROVALS</p>
-    <table>
+        <table>
         <tr>
             <td class="label">Operations Dept.</td>
             <td>{{ $permit->operationsApprover->name ?? '—' }}</td>
             <td class="label">Date</td>
             <td>{{ optional($permit->operations_approved_at)->format('d M Y H:i') ?? '—' }}</td>
         </tr>
-        <tr>
-            <td class="label">HOD HSE</td>
-            <td>{{ $permit->hseApprover->name ?? '—' }}</td>
-            <td class="label">Date</td>
-            <td>{{ optional($permit->hse_approved_at)->format('d M Y H:i') ?? '—' }}</td>
-        </tr>
-        <tr>
-            <td class="label">HOD Security</td>
-            <td>{{ $permit->securityApprover->name ?? '—' }}</td>
-            <td class="label">Date</td>
-            <td>{{ optional($permit->security_approved_at)->format('d M Y H:i') ?? '—' }}</td>
-        </tr>
+        @foreach (\App\Models\WorkPermit::REQUIRED_DEPARTMENTS as $dept)
+            @php $deptApproval = $permit->departmentApprovals->firstWhere('department', $dept); @endphp
+            <tr>
+                <td class="label">{{ strtoupper($dept) }}</td>
+                <td>{{ $deptApproval->actionedBy->name ?? '—' }}</td>
+                <td class="label">Date</td>
+                <td>{{ $deptApproval?->actioned_at?->format('d M Y H:i') ?? '—' }}</td>
+            </tr>
+        @endforeach
     </table>
 
-    <p class="status">
-        Overall Status: {{ strtoupper(str_replace('_', ' ', $permit->status)) }}
+    @php
+        $statusClass = match(true) {
+            $permit->status === 'approved' => 'status-approved',
+            $permit->status === 'rejected' => 'status-rejected',
+            default => 'status-pending',
+        };
+    @endphp
+
+    <p style="margin-top: 14px;">
+        <span class="status-badge {{ $statusClass }}">
+            {{ strtoupper(str_replace('_', ' ', $permit->status)) }}
+        </span>
     </p>
 
     <ol style="font-size: 10px; margin-top: 20px;">

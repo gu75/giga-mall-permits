@@ -20,10 +20,11 @@ class WorkPermitController extends Controller
             $query->where('tenant_id', $user->id);
         } elseif ($user->isOperations()) {
             $query->where('status', 'pending_operations')->orWhere('operations_approved_by', $user->id);
-        } elseif ($user->isHse()) {
-            $query->where('status', 'pending_hse')->orWhere('hse_approved_by', $user->id);
-        } elseif ($user->isSecurity()) {
-            $query->where('status', 'pending_security')->orWhere('security_approved_by', $user->id);
+        } elseif (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
+            $query->where(function ($q) use ($user) {
+                $q->where('status', 'in_review')
+                  ->whereDoesntHave('departmentApprovals', fn ($sub) => $sub->where('department', $user->role));
+            })->orWhereHas('departmentApprovals', fn ($sub) => $sub->where('department', $user->role)->where('actioned_by', $user->id));
         }
         // admin sees everything
 
@@ -49,7 +50,9 @@ class WorkPermitController extends Controller
             'requested_by' => 'required|string|max:255',
             'requested_by_cell_no' => 'required|string|max:50',
             'valid_from' => 'required|date',
+            'valid_from_time' => 'required',
             'valid_to' => 'required|date|after_or_equal:valid_from',
+            'valid_to_time' => 'required',
             'daytime_work_requested' => 'nullable|boolean',
             'daytime_work_reason' => 'nullable|required_if:daytime_work_requested,1|string',
             'workers' => 'required|array|min:1',
@@ -79,15 +82,13 @@ class WorkPermitController extends Controller
     {
         $this->authorizeView($workPermit);
 
-        return view('work-permits.show', ['permit' => $workPermit->load(['tenant', 'workers', 'rejectedBy'])]);
-    }
+        return view('work-permits.show', ['permit' => $workPermit->load(['tenant', 'workers', 'rejectedBy', 'departmentApprovals.actionedBy'])]);    }
 
     public function approve(Request $request, WorkPermit $workPermit)
     {
         $user = $request->user();
-        $expectedRole = $workPermit->nextApprovalRole();
 
-        if (! $expectedRole || (! $user->isAdmin() && $user->role !== $expectedRole)) {
+        if (! $user->isAdmin() && ! $workPermit->canDepartmentAct($user->role)) {
             abort(403, 'This permit is not awaiting your approval.');
         }
 
@@ -101,9 +102,8 @@ class WorkPermitController extends Controller
     public function reject(Request $request, WorkPermit $workPermit)
     {
         $user = $request->user();
-        $expectedRole = $workPermit->nextApprovalRole();
 
-        if (! $expectedRole || (! $user->isAdmin() && $user->role !== $expectedRole)) {
+        if (! $user->isAdmin() && ! $workPermit->canDepartmentAct($user->role)) {
             abort(403, 'This permit is not awaiting your action.');
         }
 
@@ -119,7 +119,7 @@ class WorkPermitController extends Controller
         $this->authorizeView($workPermit);
 
         $pdf = Pdf::loadView('work-permits.pdf', [
-            'permit' => $workPermit->load(['tenant', 'workers', 'operationsApprover', 'hseApprover', 'securityApprover']),
+            'permit' => $workPermit->load(['tenant', 'workers', 'operationsApprover', 'departmentApprovals.actionedBy']),
         ])->setPaper('a4');
 
         return $pdf->download("work-permit-{$workPermit->id}.pdf");
@@ -132,5 +132,42 @@ class WorkPermitController extends Controller
         if ($user->isTenant() && $workPermit->tenant_id !== $user->id) {
             abort(403);
         }
+    }
+public function edit(WorkPermit $workPermit)
+    {
+        // Security check: Only Admin or Operations can edit
+        if (!in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
+            abort(403, 'Unauthorized. Only Admin and Operations can edit permits.');
+        }
+
+        return view('work-permits.edit', ['permit' => $workPermit]);
+    }
+
+public function update(Request $request, WorkPermit $workPermit)
+    {
+        // Security check
+        if (!in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
+            abort(403, 'Unauthorized. Only Admin and Operations can edit permits.');
+        }
+
+        $validated = $request->validate([
+            'outlet_name' => 'required|string',
+            'floor_location' => 'required|string',
+            'site_incharge_name' => 'required|string',
+            'site_incharge_cell_no' => 'required|string',
+            'site_incharge_cnic' => 'required|string',
+            'nature_of_work' => 'required|string',
+            'requested_by' => 'required|string',
+            'requested_by_cell_no' => 'required|string',
+            'valid_from' => 'required|date',
+            'valid_from_time' => 'required',
+            'valid_to' => 'required|date|after_or_equal:valid_from',
+            'valid_to_time' => 'required',
+        ]);
+
+        $workPermit->update($validated);
+
+        return redirect()->route('work-permits.show', $workPermit->id)
+                         ->with('success', 'Work Permit updated successfully.');
     }
 }

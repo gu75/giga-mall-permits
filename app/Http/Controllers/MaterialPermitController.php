@@ -43,6 +43,7 @@ class MaterialPermitController extends Controller
             'manager_sup_cell_no' => 'required|string|max:50',
             'cnic_no' => 'required|string|max:20',
             'dated' => 'required|date',
+            'time' => 'required',
             'direction' => 'required|in:in,out',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:255',

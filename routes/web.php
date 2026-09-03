@@ -21,13 +21,19 @@ Route::middleware('auth')->group(function () {
 
     // --- Work Permits ---
     Route::get('/work-permits', [WorkPermitController::class, 'index'])->name('work-permits.index');
-    Route::get('/work-permits/{workPermit}', [WorkPermitController::class, 'show'])->name('work-permits.show');
-    Route::get('/work-permits/{workPermit}/pdf', [WorkPermitController::class, 'pdf'])->name('work-permits.pdf');
-
+    
     Route::middleware('role:tenant')->group(function () {
         Route::get('/work-permits-create', [WorkPermitController::class, 'create'])->name('work-permits.create');
-        Route::post('/work-permits', [WorkPermitController::class, 'store'])->name('work-permits.store');
+Route::post('/work-permits', [WorkPermitController::class, 'store'])->name('work-permits.store');    });
+
+    // Admin & Operations edit access
+    Route::middleware('role:admin,operations')->group(function () {
+        Route::get('/work-permits/{workPermit}/edit', [WorkPermitController::class, 'edit'])->name('work-permits.edit');
+        Route::put('/work-permits/{workPermit}', [WorkPermitController::class, 'update'])->name('work-permits.update');
     });
+
+    Route::get('/work-permits/{workPermit}', [WorkPermitController::class, 'show'])->name('work-permits.show');
+    Route::get('/work-permits/{workPermit}/pdf', [WorkPermitController::class, 'pdf'])->name('work-permits.pdf');
 
     Route::middleware('role:operations,hse,security')->group(function () {
         Route::post('/work-permits/{workPermit}/approve', [WorkPermitController::class, 'approve'])->name('work-permits.approve');
@@ -36,13 +42,14 @@ Route::middleware('auth')->group(function () {
 
     // --- Material Inward/Outward Permits ---
     Route::get('/material-permits', [MaterialPermitController::class, 'index'])->name('material-permits.index');
-    Route::get('/material-permits/{materialPermit}', [MaterialPermitController::class, 'show'])->name('material-permits.show');
-    Route::get('/material-permits/{materialPermit}/pdf', [MaterialPermitController::class, 'pdf'])->name('material-permits.pdf');
-
+    
     Route::middleware('role:tenant')->group(function () {
         Route::get('/material-permits-create', [MaterialPermitController::class, 'create'])->name('material-permits.create');
         Route::post('/material-permits', [MaterialPermitController::class, 'store'])->name('material-permits.store');
     });
+
+    Route::get('/material-permits/{materialPermit}', [MaterialPermitController::class, 'show'])->name('material-permits.show');
+    Route::get('/material-permits/{materialPermit}/pdf', [MaterialPermitController::class, 'pdf'])->name('material-permits.pdf');
 
     Route::middleware('role:operations')->group(function () {
         Route::post('/material-permits/{materialPermit}/approve', [MaterialPermitController::class, 'approve'])->name('material-permits.approve');

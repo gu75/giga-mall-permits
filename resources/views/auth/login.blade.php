@@ -31,7 +31,7 @@
             <i data-lucide="lock" class="input-icon w-5 h-5"></i>
             <input id="password" class="form-input" type="password" name="password" placeholder=" " required autocomplete="current-password">
             <label for="password" class="input-label">Password</label>
-            <span class="password-toggle" data-target="password">
+            <span class="password-toggle cursor-pointer" data-target="password">
                 <i data-lucide="eye" class="w-5 h-5"></i>
             </span>
         </div>
@@ -59,5 +59,31 @@
             </p>
         </div>
     </form>
-</x-guest-layout>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleButtons = document.querySelectorAll('.password-toggle');
+
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const targetId = this.getAttribute('data-target');
+                    const passwordInput = document.getElementById(targetId);
+
+                    if (passwordInput) {
+                        const isPassword = passwordInput.getAttribute('type') === 'password';
+                        passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+
+                        const icon = this.querySelector('i');
+                        if (icon) {
+                            icon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
+                            
+                            if (typeof lucide !== 'undefined') {
+                                lucide.createIcons();
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</x-guest-layout>

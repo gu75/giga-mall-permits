@@ -16,6 +16,7 @@ class MaterialPermit extends Model
         'manager_sup_cell_no',
         'cnic_no',
         'dated',
+        'time',
         'direction',
         'status',
         'operations_approved_by',
@@ -32,6 +33,7 @@ class MaterialPermit extends Model
     {
         return [
             'dated' => 'date',
+            'time' => 'datetime:H:i',
             'operations_approved_at' => 'datetime',
             'gate_logged_at' => 'datetime',
         ];

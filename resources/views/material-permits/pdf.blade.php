@@ -23,7 +23,7 @@
         </tr>
         <tr>
             <td class="label">Shop Type</td><td>{{ str($permit->shop_type)->replace('_',' ')->title() }}</td>
-            <td class="label">Dated</td><td>{{ $permit->dated->format('d F Y') }}</td>
+            <td class="label">Dated</td><td>{{ $permit->dated->format('d F Y') }} {{ $permit->time?->format('h:i A') }}</td>
         </tr>
         <tr>
             <td class="label">Manager/Sup Name</td><td>{{ $permit->manager_sup_name }}</td>

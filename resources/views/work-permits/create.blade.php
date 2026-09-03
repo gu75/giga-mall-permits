@@ -42,8 +42,16 @@
                 <input type="date" name="valid_from" value="{{ old('valid_from') }}" class="w-full border rounded px-3 py-2" required>
             </div>
             <div>
+                <label class="block text-sm font-medium mb-1">Valid From — Time</label>
+                <input type="time" name="valid_from_time" value="{{ old('valid_from_time') }}" class="w-full border rounded px-3 py-2" required>
+            </div>
+            <div>
                 <label class="block text-sm font-medium mb-1">Valid To</label>
                 <input type="date" name="valid_to" value="{{ old('valid_to') }}" class="w-full border rounded px-3 py-2" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Valid To — Time</label>
+                <input type="time" name="valid_to_time" value="{{ old('valid_to_time') }}" class="w-full border rounded px-3 py-2" required>
             </div>
         </div>
 

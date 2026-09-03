@@ -6,7 +6,7 @@ use App\Models\MaterialPermit;
 use App\Models\User;
 use App\Models\WorkPermit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
+use App\Models\WorkPermitDepartmentApproval;
 
 class DashboardController extends Controller
 {
@@ -51,6 +51,7 @@ class DashboardController extends Controller
 
         return view('dashboard', [
             'dashboardType' => 'tenant',
+            'user' => $user,
             'activeWorkPermits' => $activeWorkPermits,
             'historyWorkPermits' => $historyWorkPermits,
             'activeMaterialPermits' => $activeMaterialPermits,
@@ -80,31 +81,28 @@ class DashboardController extends Controller
                 ->latest('updated_at')
                 ->take(8)
                 ->get();
-        } elseif ($user->isHse()) {
-            $pendingWorkCount = WorkPermit::where('status', 'pending_hse')->count();
-            // Material permits never reach HSE in this workflow.
+          }        elseif (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
+            $pendingWorkCount = WorkPermit::where('status', 'in_review')
+                ->whereDoesntHave('departmentApprovals', fn ($q) => $q->where('department', $user->role))
+                ->count();
 
-            $recentWorkPermits = WorkPermit::where('hse_approved_by', $user->id)
-                ->orWhere('rejected_by', $user->id)
-                ->latest('updated_at')
+            $recentWorkPermitIds = WorkPermitDepartmentApproval::where('actioned_by', $user->id)
+                ->where('department', $user->role)
+                ->latest('actioned_at')
                 ->take(8)
-                ->get();
-        } elseif ($user->isSecurity()) {
-            $pendingWorkCount = WorkPermit::where('status', 'pending_security')->count();
-            // For Security, a "pending material permit" means one approved by
-            // Operations and awaiting the gate IN/OUT log.
-            $pendingMaterialCount = MaterialPermit::where('status', 'approved')->count();
+                ->pluck('work_permit_id');
 
-            $recentWorkPermits = WorkPermit::where('security_approved_by', $user->id)
-                ->orWhere('rejected_by', $user->id)
-                ->latest('updated_at')
-                ->take(8)
-                ->get();
+            $recentWorkPermits = WorkPermit::whereIn('id', $recentWorkPermitIds)->get();
 
-            $recentMaterialPermits = MaterialPermit::where('gate_logged_by', $user->id)
-                ->latest('updated_at')
-                ->take(8)
-                ->get();
+            if ($user->role === 'security') {
+                // Security also gate-logs Material Permits once Operations approves them.
+                $pendingMaterialCount = MaterialPermit::where('status', 'approved')->count();
+
+                $recentMaterialPermits = MaterialPermit::where('gate_logged_by', $user->id)
+                    ->latest('updated_at')
+                    ->take(8)
+                    ->get();
+            }
         }
 
         // Merge both permit types into one recent-activity feed, newest first.

@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkPermit extends Model
 {
+    // Departments required to approve AFTER Operations, in parallel.
+    // Add a new department here later — no migration needed.
+    const REQUIRED_DEPARTMENTS = ['hse', 'security'];
+
     protected $fillable = [
         'tenant_id',
         'outlet_name',
@@ -19,19 +23,15 @@ class WorkPermit extends Model
         'requested_by',
         'requested_by_cell_no',
         'valid_from',
+        'valid_from_time',
         'valid_to',
+        'valid_to_time',
         'daytime_work_requested',
         'daytime_work_reason',
         'status',
         'operations_approved_by',
         'operations_approved_at',
         'operations_remarks',
-        'hse_approved_by',
-        'hse_approved_at',
-        'hse_remarks',
-        'security_approved_by',
-        'security_approved_at',
-        'security_remarks',
         'rejected_by',
         'rejection_reason',
     ];
@@ -40,11 +40,11 @@ class WorkPermit extends Model
     {
         return [
             'valid_from' => 'date',
+            'valid_from_time' => 'datetime:H:i',
             'valid_to' => 'date',
+            'valid_to_time' => 'datetime:H:i',
             'daytime_work_requested' => 'boolean',
             'operations_approved_at' => 'datetime',
-            'hse_approved_at' => 'datetime',
-            'security_approved_at' => 'datetime',
         ];
     }
 
@@ -63,60 +63,113 @@ class WorkPermit extends Model
         return $this->belongsTo(User::class, 'operations_approved_by');
     }
 
-    public function hseApprover(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'hse_approved_by');
-    }
-
-    public function securityApprover(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'security_approved_by');
-    }
-        public function rejectedBy(): BelongsTo
+    public function rejectedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rejected_by');
     }
 
-    /**
-     * Which role's action is needed next, or null if resolved (approved/rejected).
-     */
-    public function nextApprovalRole(): ?string
+    public function departmentApprovals(): HasMany
     {
-        return match ($this->status) {
-            'pending_operations' => 'operations',
-            'pending_hse' => 'hse',
-            'pending_security' => 'security',
-            default => null,
-        };
+        return $this->hasMany(WorkPermitDepartmentApproval::class);
+    }
+
+    public function departmentStatus(string $department): ?string
+    {
+        return $this->departmentApprovals->firstWhere('department', $department)?->status;
+    }
+
+    /** Departments that still need to approve (excludes already-approved ones). */
+    public function pendingDepartments(): array
+    {
+        return array_values(array_filter(
+            self::REQUIRED_DEPARTMENTS,
+            fn ($dept) => $this->departmentStatus($dept) !== 'approved'
+        ));
+    }
+
+    public function canDepartmentAct(string $department): bool
+    {
+        if ($department === 'operations') {
+            return $this->status === 'pending_operations';
+        }
+
+        if (in_array($department, self::REQUIRED_DEPARTMENTS, true)) {
+            return $this->status === 'in_review' && $this->departmentStatus($department) === null;
+        }
+
+        return false;
     }
 
     public function approve(User $approver, ?string $remarks = null): void
     {
-        match ($this->status) {
-            'pending_operations' => $this->update([
+        if ($approver->isAdmin()) {
+            if (is_null($this->operations_approved_at)) {
+                $this->update([
+                    'operations_approved_by' => $approver->id,
+                    'operations_approved_at' => now(),
+                    'operations_remarks' => $this->operations_remarks ?? $remarks,
+                ]);
+            }
+
+            foreach (self::REQUIRED_DEPARTMENTS as $dept) {
+                $this->departmentApprovals()->updateOrCreate(
+                    ['department' => $dept],
+                    [
+                        'status' => 'approved',
+                        'actioned_by' => $approver->id,
+                        'actioned_at' => now(),
+                        'remarks' => $remarks,
+                    ]
+                );
+            }
+
+            $this->update(['status' => 'approved']);
+            return;
+        }
+
+        if ($approver->role === 'operations') {
+            $this->update([
                 'operations_approved_by' => $approver->id,
                 'operations_approved_at' => now(),
                 'operations_remarks' => $remarks,
-                'status' => 'pending_hse',
-            ]),
-            'pending_hse' => $this->update([
-                'hse_approved_by' => $approver->id,
-                'hse_approved_at' => now(),
-                'hse_remarks' => $remarks,
-                'status' => 'pending_security',
-            ]),
-            'pending_security' => $this->update([
-                'security_approved_by' => $approver->id,
-                'security_approved_at' => now(),
-                'security_remarks' => $remarks,
-                'status' => 'approved',
-            ]),
-            default => null,
-        };
+                'status' => 'in_review',
+            ]);
+            return;
+        }
+
+        if (in_array($approver->role, self::REQUIRED_DEPARTMENTS, true)) {
+            $this->departmentApprovals()->updateOrCreate(
+                ['department' => $approver->role],
+                [
+                    'status' => 'approved',
+                    'actioned_by' => $approver->id,
+                    'actioned_at' => now(),
+                    'remarks' => $remarks,
+                ]
+            );
+
+            $this->load('departmentApprovals');
+
+            if (empty($this->pendingDepartments())) {
+                $this->update(['status' => 'approved']);
+            }
+        }
     }
 
     public function reject(User $rejector, string $reason): void
     {
+        if (! $rejector->isAdmin() && in_array($rejector->role, self::REQUIRED_DEPARTMENTS, true)) {
+            $this->departmentApprovals()->updateOrCreate(
+                ['department' => $rejector->role],
+                [
+                    'status' => 'rejected',
+                    'actioned_by' => $rejector->id,
+                    'actioned_at' => now(),
+                    'remarks' => $reason,
+                ]
+            );
+        }
+
         $this->update([
             'status' => 'rejected',
             'rejected_by' => $rejector->id,

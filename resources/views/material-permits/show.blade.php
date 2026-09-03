@@ -18,8 +18,7 @@
             <p><span class="text-gray-500">Direction:</span> {{ strtoupper($permit->direction) }}</p>
             <p><span class="text-gray-500">Manager/Sup:</span> {{ $permit->manager_sup_name }} ({{ $permit->manager_sup_cell_no }})</p>
             <p><span class="text-gray-500">CNIC:</span> {{ $permit->cnic_no }}</p>
-            <p><span class="text-gray-500">Dated:</span> {{ $permit->dated->format('d M Y') }}</p>
-        </div>
+            <p><span class="text-gray-500">Dated:</span> {{ $permit->dated->format('d M Y') }} {{ $permit->time?->format('h:i A') }}</p>        </div>
 
         <div class="border-t pt-4">
             <h2 class="font-semibold mb-2">Items</h2>

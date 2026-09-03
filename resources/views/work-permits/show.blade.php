@@ -4,7 +4,18 @@
 
 @section('content')
     @php $user = auth()->user(); @endphp
+<div class="max-w-4xl mx-auto py-6">
+    
+    <!-- HEADER AND EDIT BUTTON -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Work Permit Details</h1>
 
+        @if(in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation']))
+            <a href="{{ route('work-permits.edit', $permit->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">
+                Edit Permit Details
+            </a>
+        @endif
+    </div>
     <div class="flex items-center justify-between mb-4">
         <h1 class="text-2xl font-bold">Work Permit #{{ $permit->id }}</h1>
         <a href="{{ route('work-permits.pdf', $permit) }}" class="bg-gray-800 text-white px-4 py-2 rounded text-sm">
@@ -19,8 +30,7 @@
             <p><span class="text-gray-500">Site Incharge:</span> {{ $permit->site_incharge_name }} ({{ $permit->site_incharge_cell_no }})</p>
             <p><span class="text-gray-500">CNIC:</span> {{ $permit->site_incharge_cnic }}</p>
             <p><span class="text-gray-500">Requested By:</span> {{ $permit->requested_by }} ({{ $permit->requested_by_cell_no }})</p>
-            <p><span class="text-gray-500">Valid:</span> {{ $permit->valid_from->format('d M Y') }} – {{ $permit->valid_to->format('d M Y') }}</p>
-        </div>
+            <p><span class="text-gray-500">Valid:</span> {{ $permit->valid_from->format('d M Y') }} {{ $permit->valid_from_time?->format('h:i A') }} – {{ $permit->valid_to->format('d M Y') }} {{ $permit->valid_to_time?->format('h:i A') }}</p>        </div>
 
         <div class="text-sm">
             <span class="text-gray-500">Nature of Work:</span> {{ $permit->nature_of_work }}
@@ -65,33 +75,32 @@
                         ⏳ Pending
                     @endif
                 </li>
-                <li>
-                    HSE:
-                    @if ($permit->hse_approved_at)
-                        ✅ {{ $permit->hseApprover->name }} on {{ $permit->hse_approved_at->format('d M Y H:i') }}
-                    @else
-                        ⏳ Pending
-                    @endif
-                </li>
-                <li>
-                    Security:
-                    @if ($permit->security_approved_at)
-                        ✅ {{ $permit->securityApprover->name }} on {{ $permit->security_approved_at->format('d M Y H:i') }}
-                    @else
-                        ⏳ Pending
-                    @endif
-                </li>
+                @foreach (\App\Models\WorkPermit::REQUIRED_DEPARTMENTS as $dept)
+                    @php $deptApproval = $permit->departmentApprovals->firstWhere('department', $dept); @endphp
+                    <li>
+                        {{ strtoupper($dept) }}:
+                        @if ($deptApproval && $deptApproval->status === 'approved')
+                            ✅ {{ $deptApproval->actionedBy->name }} on {{ $deptApproval->actioned_at->format('d M Y H:i') }}
+                        @elseif ($deptApproval && $deptApproval->status === 'rejected')
+                            ❌ Rejected by {{ $deptApproval->actionedBy->name }} — {{ $deptApproval->remarks }}
+                        @elseif ($permit->status === 'pending_operations')
+                            ⏳ Waiting on Operations first
+                        @else
+                            ⏳ Pending (can act anytime now)
+                        @endif
+                    </li>
+                @endforeach
             </ul>
 
-@if ($permit->status === 'rejected')
-    <p class="text-sm text-red-600 mt-2">
-        Rejected by {{ $permit->rejectedBy->name }} ({{ $permit->rejectedBy->role }}) — {{ $permit->rejection_reason }}
-    </p>
-@endif
+            @if ($permit->status === 'rejected')
+                <p class="text-sm text-red-600 mt-2">
+                    Rejected by {{ $permit->rejectedBy->name }} ({{ $permit->rejectedBy->role }}) — {{ $permit->rejection_reason }}
+                </p>
+            @endif
         </div>
 
-        @if ($permit->nextApprovalRole() === $user->role || $user->isAdmin())
-            <div class="border-t pt-4">
+        @if ($user->isAdmin() || $permit->canDepartmentAct($user->role))
+                    <div class="border-t pt-4">
                 <h2 class="font-semibold mb-2">Your Action</h2>
                 <div class="flex gap-3">
                     <form method="POST" action="{{ route('work-permits.approve', $permit) }}">

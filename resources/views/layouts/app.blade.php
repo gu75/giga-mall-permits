@@ -9,7 +9,7 @@
 <body class="bg-gray-100 text-gray-900">
     <nav class="bg-white shadow mb-6">
         <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="{{ route('work-permits.index') }}" class="font-bold text-lg">GIGA MALL Permits</a>
+            <a href="{{ route('dashboard') }}" class="font-bold text-lg">GIGA MALL Permits</a>
             <div class="flex gap-4 text-sm items-center">
                 <a href="{{ route('work-permits.index') }}" class="hover:underline">Work Permits</a>
                 <a href="{{ route('material-permits.index') }}" class="hover:underline">Material Permits</a>

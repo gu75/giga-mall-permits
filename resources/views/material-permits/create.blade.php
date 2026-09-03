@@ -32,6 +32,10 @@
                 <input type="date" name="dated" value="{{ old('dated') }}" class="w-full border rounded px-3 py-2" required>
             </div>
             <div>
+                <label class="block text-sm font-medium mb-1">Time</label>
+                <input type="time" name="time" value="{{ old('time') }}" class="w-full border rounded px-3 py-2" required>
+            </div>
+            <div>
                 <label class="block text-sm font-medium mb-1">Manager/Sup Name</label>
                 <input type="text" name="manager_sup_name" value="{{ old('manager_sup_name') }}" class="w-full border rounded px-3 py-2" required>
             </div>
