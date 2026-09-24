@@ -33,7 +33,7 @@ class MaterialPermit extends Model
     {
         return [
             'dated' => 'date',
-            'time' => 'datetime:H:i',
+            'time' => 'datetime:H:i',                                                                                                                                   
             'operations_approved_at' => 'datetime',
             'gate_logged_at' => 'datetime',
         ];

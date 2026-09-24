@@ -11,6 +11,8 @@
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#C8A951]">Tenant Dashboard</p>
             <h1 class="mt-2 text-3xl font-extrabold text-[#0A2342]">Welcome back, {{ $user->name }}</h1>
         </div>
+        
+        
 
         <div class="flex flex-col sm:flex-row gap-3">
             <a href="{{ route('work-permits.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0A2342] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#0A2342]/15 transition hover:-translate-y-0.5">
@@ -200,6 +202,12 @@
             <p class="text-sm font-semibold uppercase tracking-[0.2em] text-[#C8A951]">Management Dashboard</p>
             <h1 class="mt-1 text-3xl font-extrabold text-[#0A2342]">{{ ucfirst(auth()->user()->role) }} Overview</h1>
         </div>
+
+        @if (auth()->user()->isOperations() || auth()->user()->isAdmin())
+            <a href="{{ route('tenants.index') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0A2342] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[#0A2342]/15 transition hover:-translate-y-0.5">
+                <span>👥</span> Manage Tenants
+            </a>
+        @endif
     </div>
 
     <div class="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4">

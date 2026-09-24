@@ -25,7 +25,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Shop Details</label>
-                <input type="text" name="shop_details" value="{{ old('shop_details') }}" class="w-full border rounded px-3 py-2" required>
+                <input type="text" name="shop_details" value="{{ old('shop_details', auth()->user()->shop_name) }}" class="w-full border rounded px-3 py-2" required>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Dated</label>
@@ -37,11 +37,11 @@
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Manager/Sup Name</label>
-                <input type="text" name="manager_sup_name" value="{{ old('manager_sup_name') }}" class="w-full border rounded px-3 py-2" required>
+                <input type="text" name="manager_sup_name" value="{{ old('manager_sup_name', auth()->user()->name) }}" class="w-full border rounded px-3 py-2" required>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Manager/Sup Cell No</label>
-                <input type="text" name="manager_sup_cell_no" value="{{ old('manager_sup_cell_no') }}" class="w-full border rounded px-3 py-2" required>
+                <input type="text" name="manager_sup_cell_no" value="{{ old('manager_sup_cell_no', auth()->user()->cell_no) }}" class="w-full border rounded px-3 py-2" required>
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">CNIC No</label>
@@ -63,6 +63,23 @@
                     <button type="button" @click="removeRow(index)" class="col-span-1 text-red-600 text-sm">✕</button>
                 </div>
             </template>
+        </div>
+
+        <div class="border-t pt-4">
+            <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 mb-3">
+                <p class="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2">Acknowledgment</p>
+                <p class="text-sm text-amber-900">
+                    I confirm that I have been fully explained this SOP, understood it, and agree to comply with it while carrying out this work. In case of any damage caused by my crew, I will be responsible for it — whether that responsibility is financial, legal (fines, penalties), or other legal action.
+                </p>
+            </div>
+            <label class="inline-flex items-start gap-2">
+                <input type="checkbox" name="terms_accepted" value="1" required class="mt-1">
+                <span class="text-sm">
+                    I have read and agree to the
+                    <a href="{{ route('terms') }}" target="_blank" class="text-blue-600 underline">Mall SOP / Terms &amp; Conditions</a>
+                    (full document, English &amp; Urdu).
+                </span>
+            </label>
         </div>
 
         <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Submit for Approval</button>

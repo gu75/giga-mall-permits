@@ -49,6 +49,7 @@ class MaterialPermitController extends Controller
             'items.*.description' => 'required|string|max:255',
             'items.*.quantity' => 'required|string|max:50',
             'items.*.remarks' => 'nullable|string|max:255',
+            'terms_accepted' => 'required|accepted',
         ]);
 
         DB::transaction(function () use ($validated, $request) {

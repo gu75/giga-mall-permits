@@ -59,6 +59,7 @@ class WorkPermitController extends Controller
             'workers.*.worker_name' => 'required|string|max:255',
             'workers.*.job_description' => 'required|string|max:255',
             'workers.*.cnic_number' => 'required|string|max:20',
+            'terms_accepted' => 'required|accepted',
         ]);
 
         DB::transaction(function () use ($validated, $request) {

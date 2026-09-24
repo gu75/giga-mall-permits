@@ -4,6 +4,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\WorkPermitController;
 use App\Http\Controllers\MaterialPermitController;
+use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -15,16 +16,24 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::view('/terms', 'terms')->name('terms');
+    // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Tenant Management (Generates index, create, store, edit, update, destroy)
+    Route::middleware('role:operations')->group(function () {
+        Route::resource('tenants', TenantController::class);
+    });
 
     // --- Work Permits ---
     Route::get('/work-permits', [WorkPermitController::class, 'index'])->name('work-permits.index');
     
     Route::middleware('role:tenant')->group(function () {
         Route::get('/work-permits-create', [WorkPermitController::class, 'create'])->name('work-permits.create');
-Route::post('/work-permits', [WorkPermitController::class, 'store'])->name('work-permits.store');    });
+        Route::post('/work-permits', [WorkPermitController::class, 'store'])->name('work-permits.store');
+    });
 
     // Admin & Operations edit access
     Route::middleware('role:admin,operations')->group(function () {

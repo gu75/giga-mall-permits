@@ -103,6 +103,10 @@ class WorkPermit extends Model
     public function approve(User $approver, ?string $remarks = null): void
     {
         if ($approver->isAdmin()) {
+            // Refresh so we're checking real, current department statuses
+            // before deciding what admin needs to fill in.
+            $this->load('departmentApprovals');
+
             if (is_null($this->operations_approved_at)) {
                 $this->update([
                     'operations_approved_by' => $approver->id,
@@ -112,6 +116,12 @@ class WorkPermit extends Model
             }
 
             foreach (self::REQUIRED_DEPARTMENTS as $dept) {
+                // Skip any department that already has a real approval —
+                // never overwrite HSE's/Security's own signature with admin's.
+                if ($this->departmentStatus($dept) === 'approved') {
+                    continue;
+                }
+
                 $this->departmentApprovals()->updateOrCreate(
                     ['department' => $dept],
                     [

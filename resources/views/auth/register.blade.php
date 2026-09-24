@@ -43,6 +43,24 @@
                 <i data-lucide="eye" class="w-5 h-5"></i>
             </span>
         </div>
+                <div class="input-group">
+            <i data-lucide="store" class="input-icon w-5 h-5"></i>
+            <input id="shop_name" class="form-input" type="text" name="shop_name" value="{{ old('shop_name') }}" placeholder=" " required autocomplete="off">
+            <label for="shop_name" class="input-label">Shop Name</label>
+        </div>
+
+        <div class="input-group">
+            <i data-lucide="map-pin" class="input-icon w-5 h-5"></i>
+            <input id="floor_location" class="form-input" type="text" name="floor_location" value="{{ old('floor_location') }}" placeholder=" " required autocomplete="off">
+            <label for="floor_location" class="input-label">Floor / Location</label>
+        </div>
+
+        <div class="input-group">
+            <i data-lucide="phone" class="input-icon w-5 h-5"></i>
+            <input id="cell_no" class="form-input" type="text" name="cell_no" value="{{ old('cell_no') }}" placeholder=" " required autocomplete="off">
+            <label for="cell_no" class="input-label">Cell No</label>
+        </div>
+
 
         <button type="submit" class="btn-primary mt-2">
             <i data-lucide="user-plus" class="w-5 h-5"></i>
