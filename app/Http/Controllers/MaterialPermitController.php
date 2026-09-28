@@ -72,7 +72,7 @@ class MaterialPermitController extends Controller
     {
         $this->authorizeView($materialPermit);
 
-        return view('material-permits.show', ['permit' => $materialPermit->load(['tenant', 'items' , 'rejectedBy'])]);
+        return view('material-permits.show', ['permit' => $materialPermit->load(['tenant', 'items', 'rejectedBy'])]);
     }
 
     public function approve(Request $request, MaterialPermit $materialPermit)

@@ -218,16 +218,16 @@ class DashboardController extends Controller
         }
 
         return $recentWorkPermits->map(fn ($p) => [
-                'type' => 'Work Permit',
-                'ref' => 'WP-' . $p->id,
-                'label' => $p->outlet_name,
-                'status' => $p->status,
-                'route' => route('work-permits.show', $p),
-                'when' => $p->updated_at,
-            ])
+            'type' => 'Work Permit',
+            'ref' => 'WP-'.$p->id,
+            'label' => $p->outlet_name,
+            'status' => $p->status,
+            'route' => route('work-permits.show', $p),
+            'when' => $p->updated_at,
+        ])
             ->concat($recentMaterialPermits->map(fn ($p) => [
                 'type' => 'Material Permit',
-                'ref' => 'MP-' . $p->id,
+                'ref' => 'MP-'.$p->id,
                 'label' => $p->shop_details,
                 'status' => $p->status,
                 'route' => route('material-permits.show', $p),

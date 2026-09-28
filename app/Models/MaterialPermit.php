@@ -33,7 +33,7 @@ class MaterialPermit extends Model
     {
         return [
             'dated' => 'date',
-            'time' => 'datetime:H:i',                                                                                                                                   
+            'time' => 'datetime:H:i',
             'operations_approved_at' => 'datetime',
             'gate_logged_at' => 'datetime',
         ];
@@ -58,10 +58,11 @@ class MaterialPermit extends Model
     {
         return $this->belongsTo(User::class, 'gate_logged_by');
     }
+
     public function rejectedBy(): BelongsTo
-{
-    return $this->belongsTo(User::class, 'rejected_by');
-}
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
 
     public function approve(User $approver, ?string $remarks = null): void
     {

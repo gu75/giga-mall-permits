@@ -134,6 +134,7 @@ class WorkPermit extends Model
             }
 
             $this->update(['status' => 'approved']);
+
             return;
         }
 
@@ -144,6 +145,7 @@ class WorkPermit extends Model
                 'operations_remarks' => $remarks,
                 'status' => 'in_review',
             ]);
+
             return;
         }
 

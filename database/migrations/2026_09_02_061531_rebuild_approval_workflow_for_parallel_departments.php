@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,7 +18,7 @@ return new class extends Migration
             $table->timestamp('actioned_at');
             $table->text('remarks')->nullable();
             $table->timestamps();
-           $table->unique(['work_permit_id', 'department'], 'wpda_permit_dept_unique');
+            $table->unique(['work_permit_id', 'department'], 'wpda_permit_dept_unique');
         });
 
         // Preserve existing HSE/Security approval history from the old columns.
@@ -55,16 +55,22 @@ return new class extends Migration
             ->whereIn('status', ['pending_hse', 'pending_security'])
             ->update(['status' => 'in_review']);
 
-        DB::statement("ALTER TABLE work_permits MODIFY status ENUM('pending_operations', 'in_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending_operations'");
+        // MySQL-only statements (SQLite, used by the test suite, doesn't support MODIFY).
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE work_permits MODIFY status ENUM('pending_operations', 'in_review', 'approved', 'rejected') NOT NULL DEFAULT 'pending_operations'");
 
-        // Widen role so future departments never need a migration to add a user.
-        DB::statement("ALTER TABLE users MODIFY role VARCHAR(50) NOT NULL DEFAULT 'tenant'");
+            // Widen role so future departments never need a migration to add a user.
+            DB::statement("ALTER TABLE users MODIFY role VARCHAR(50) NOT NULL DEFAULT 'tenant'");
+        }
     }
 
     public function down(): void
     {
         Schema::dropIfExists('work_permit_department_approvals');
-        DB::statement("ALTER TABLE work_permits MODIFY status ENUM('pending_operations', 'pending_hse', 'pending_security', 'approved', 'rejected') NOT NULL DEFAULT 'pending_operations'");
-        DB::statement("ALTER TABLE users MODIFY role ENUM('tenant', 'operations', 'hse', 'security', 'admin') NOT NULL DEFAULT 'tenant'");
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE work_permits MODIFY status ENUM('pending_operations', 'pending_hse', 'pending_security', 'approved', 'rejected') NOT NULL DEFAULT 'pending_operations'");
+            DB::statement("ALTER TABLE users MODIFY role ENUM('tenant', 'operations', 'hse', 'security', 'admin') NOT NULL DEFAULT 'tenant'");
+        }
     }
 };

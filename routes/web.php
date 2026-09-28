@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\WorkPermitController;
 use App\Http\Controllers\MaterialPermitController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TenantController;
+use App\Http\Controllers\WorkPermitController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -29,7 +29,7 @@ Route::middleware('auth')->group(function () {
 
     // --- Work Permits ---
     Route::get('/work-permits', [WorkPermitController::class, 'index'])->name('work-permits.index');
-    
+
     Route::middleware('role:tenant')->group(function () {
         Route::get('/work-permits-create', [WorkPermitController::class, 'create'])->name('work-permits.create');
         Route::post('/work-permits', [WorkPermitController::class, 'store'])->name('work-permits.store');
@@ -51,7 +51,7 @@ Route::middleware('auth')->group(function () {
 
     // --- Material Inward/Outward Permits ---
     Route::get('/material-permits', [MaterialPermitController::class, 'index'])->name('material-permits.index');
-    
+
     Route::middleware('role:tenant')->group(function () {
         Route::get('/material-permits-create', [MaterialPermitController::class, 'create'])->name('material-permits.create');
         Route::post('/material-permits', [MaterialPermitController::class, 'store'])->name('material-permits.store');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class TenantController extends Controller
@@ -47,7 +48,7 @@ class TenantController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-           'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $tenant->id],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$tenant->id],
             'shop_name' => ['required', 'string', 'max:255'],
             'floor_location' => ['required', 'string', 'max:255'],
 
@@ -73,7 +74,8 @@ class TenantController extends Controller
 
         return redirect()->route('tenants.index')->with('status', 'Tenant deleted successfully.');
     }
-        public function create(): View
+
+    public function create(): View
     {
         return view('tenants.create');
     }
@@ -92,7 +94,7 @@ class TenantController extends Controller
         User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'password' => Hash::make($validated['password']),
             'role' => 'tenant',
             'shop_name' => $validated['shop_name'],
             'floor_location' => $validated['floor_location'],

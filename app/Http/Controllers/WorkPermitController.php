@@ -23,7 +23,7 @@ class WorkPermitController extends Controller
         } elseif (in_array($user->role, WorkPermit::REQUIRED_DEPARTMENTS, true)) {
             $query->where(function ($q) use ($user) {
                 $q->where('status', 'in_review')
-                  ->whereDoesntHave('departmentApprovals', fn ($sub) => $sub->where('department', $user->role));
+                    ->whereDoesntHave('departmentApprovals', fn ($sub) => $sub->where('department', $user->role));
             })->orWhereHas('departmentApprovals', fn ($sub) => $sub->where('department', $user->role)->where('actioned_by', $user->id));
         }
         // admin sees everything
@@ -83,7 +83,8 @@ class WorkPermitController extends Controller
     {
         $this->authorizeView($workPermit);
 
-        return view('work-permits.show', ['permit' => $workPermit->load(['tenant', 'workers', 'rejectedBy', 'departmentApprovals.actionedBy'])]);    }
+        return view('work-permits.show', ['permit' => $workPermit->load(['tenant', 'workers', 'rejectedBy', 'departmentApprovals.actionedBy'])]);
+    }
 
     public function approve(Request $request, WorkPermit $workPermit)
     {
@@ -134,20 +135,21 @@ class WorkPermitController extends Controller
             abort(403);
         }
     }
-public function edit(WorkPermit $workPermit)
+
+    public function edit(WorkPermit $workPermit)
     {
         // Security check: Only Admin or Operations can edit
-        if (!in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
+        if (! in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
             abort(403, 'Unauthorized. Only Admin and Operations can edit permits.');
         }
 
         return view('work-permits.edit', ['permit' => $workPermit]);
     }
 
-public function update(Request $request, WorkPermit $workPermit)
+    public function update(Request $request, WorkPermit $workPermit)
     {
         // Security check
-        if (!in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
+        if (! in_array(auth()->user()->role ?? '', ['admin', 'operations', 'operation'])) {
             abort(403, 'Unauthorized. Only Admin and Operations can edit permits.');
         }
 
@@ -169,6 +171,6 @@ public function update(Request $request, WorkPermit $workPermit)
         $workPermit->update($validated);
 
         return redirect()->route('work-permits.show', $workPermit->id)
-                         ->with('success', 'Work Permit updated successfully.');
+            ->with('success', 'Work Permit updated successfully.');
     }
 }
